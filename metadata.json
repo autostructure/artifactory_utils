@@ -1,0 +1,33 @@
+{
+  "name": "autostructure-artifactory_utils",
+  "version": "0.1.0",
+  "author": "autostructure",
+  "summary": "Toolbox of utils for artifactory interaction",
+  "license": "Apache-2.0",
+  "source": "https://github.com/autostructure/artifactory_utils.git",
+  "project_page": "https://github.com/autostructure/artifactory_utils",
+  "issues_url": "https://github.com/autostructure/artifactory_utils/issues",
+  "dependencies": [
+    {
+      "name": "puppetlabs-stdlib",
+      "version_requirement": ">= 1.0.0"
+    }
+  ],
+  "operatingsystem_support": [
+    {
+      "operatingsystem": "Debian",
+      "operatingsystemrelease": [
+        "6",
+        "7"
+      ]
+    },
+    {
+      "operatingsystem": "RedHat",
+      "operatingsystemrelease": [
+        "5",
+        "6",
+        "7"
+      ]
+    }
+  ]
+}
