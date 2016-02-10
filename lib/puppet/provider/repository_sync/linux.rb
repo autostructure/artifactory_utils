@@ -26,74 +26,74 @@ Puppet::Type.type(:repository_sync).provide :linux do
       end
 
     else
-    # Assign variables assigned by parameters
-    artifactory_host = @resource.value(:artifactory_host)
-    destination      = @resource.value(:destination)
+      # Assign variables assigned by parameters
+      artifactory_host = @resource.value(:artifactory_host)
+      destination      = @resource.value(:destination)
 
-    # All of the directories under the root
-    all_directories = Dir.glob(destination + '**/')
+      # All of the directories under the root
+      all_directories = Dir.glob(destination + '**/')
 
-    # All of the files under the root
-    all_files = Dir.glob(destination + '**/*').reject {|fn| File.directory?(fn) }
+      # All of the files under the root
+      all_files = Dir.glob(destination + '**/*').reject {|fn| File.directory?(fn) }
 
-    # The directories that should not be removed
-    current_directories = []
+      # The directories that should not be removed
+      current_directories = []
 
-    # The files that should not be removed
-    current_files = []
+      # The files that should not be removed
+      current_files = []
 
-    site = RestClient::Resource.new('http://' + artifactory_host + '/artifactory/api/search/aql', 'bryanjbelanger', 'AP72yHkFrzshjdcHt6R3WbJxqsq')
+      site = RestClient::Resource.new('http://' + artifactory_host + '/artifactory/api/search/aql', 'bryanjbelanger', 'AP72yHkFrzshjdcHt6R3WbJxqsq')
 
-    response = site.post 'items.find( { "repo":{"$eq":"libs-release-local"}, "type":{"$eq":"any"} }).include("name", "repo", "path", "type", "actual_sha1").sort({"$asc" : ["type","name"]})', :content_type => 'text/plain'
+      response = site.post 'items.find( { "repo":{"$eq":"libs-release-local"}, "type":{"$eq":"any"} }).include("name", "repo", "path", "type", "actual_sha1").sort({"$asc" : ["type","name"]})', :content_type => 'text/plain'
 
-    results = JSON.parse(response.to_str)['results']
+      results = JSON.parse(response.to_str)['results']
 
-    results.each do |result|
-      # Create item path and then remove all instances of ./
-      item_path = destination + result['path'] + '/' + result['name']
-      item_path.gsub!(/\/\./, '')
+      results.each do |result|
+        # Create item path and then remove all instances of ./
+        item_path = destination + result['path'] + '/' + result['name']
+        item_path.gsub!(/\/\./, '')
 
-      if result['type'] == 'folder'
-        if !all_directories.include?(item_path + '/')
-          return false
-        else
-          current_directories.push item_path + '/'
-        end
-      else
-        current_files.push(item_path)
-
-        if !File.exist?(item_path)
-          return false
-        else
-          sha_resource = RestClient::Resource.new('http://' + artifactory_host + '/artifactory/api/storage/' + result['repo'] + '/' + result['path'] + '/' + result['name'], 'bryanjbelanger', 'AP72yHkFrzshjdcHt6R3WbJxqsq')
-          sha_response = JSON.parse(sha_resource.get)['checksums']['sha1']
-
-          # Compute digest for a file
-          sha1 = Digest::SHA1.file item_path
-
-          # Make sure the sha1 hashes match
-          if sha1 != sha_response
+        if result['type'] == 'folder'
+          if !all_directories.include?(item_path + '/')
             return false
+          else
+            current_directories.push item_path + '/'
+          end
+        else
+          current_files.push(item_path)
+
+          if !File.exist?(item_path)
+            return false
+          else
+            sha_resource = RestClient::Resource.new('http://' + artifactory_host + '/artifactory/api/storage/' + result['repo'] + '/' + result['path'] + '/' + result['name'], 'bryanjbelanger', 'AP72yHkFrzshjdcHt6R3WbJxqsq')
+            sha_response = JSON.parse(sha_resource.get)['checksums']['sha1']
+
+            # Compute digest for a file
+            sha1 = Digest::SHA1.file item_path
+
+            # Make sure the sha1 hashes match
+            if sha1 != sha_response
+              return false
+            end
           end
         end
       end
+
+      file_differences = all_files - current_files
+
+      if file_differences.length > 0
+        return false
+      end
+
+      directory_differences = all_directories - current_directories
+
+      if directory_differences.length > 0
+        return false
+      end
+
+      return true
     end
-
-    file_differences = all_files - current_files
-
-    if file_differences.length > 0
-      return false
-    end
-
-    directory_differences = all_directories - current_directories
-
-    if directory_differences.length > 0
-      return false
-    end
-
-    return true
   end
-
   # Write a new file to the destination
   def write_file(result, destination, artifactory_host)
     Net::HTTP.start(artifactory_host) do |http|
