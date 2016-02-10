@@ -17,4 +17,23 @@ class artifactory_utils::params {
       fail("${::operatingsystem} not supported")
     }
   }
+
+  # Requires some gems
+  package {'rest-client':
+    ensure   => present,
+    provider => 'puppet_gem',
+    require  => [ Package['gcc'], Package['ruby-devel'], Package['rubygem'] ],
+  }
+
+  package { 'gcc':
+    ensure => present,
+  }
+
+  ensure { 'ruby-devel':
+    ensure => present,
+  }
+
+  ensure { 'rubygem':
+    ensure => present,
+  }
 }
