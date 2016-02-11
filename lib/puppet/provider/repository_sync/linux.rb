@@ -1,8 +1,49 @@
 require 'fileutils'
-require 'rest-client'
 
 # Synchronized an artifatory repository by name to a destination
 Puppet::Type.type(:repository_sync).provide :linux do
+
+  def repository_item_query(repository_name)
+    query = []
+
+    query << "items.find(\n"
+    query << "  {\n"
+    query << "    \"repo\":{\n"
+    query << "      \"$eq\":\"" + repository_name + "\"\n"
+    query << "    },\n"
+    query << "    \"type\":{\n"
+    query << "      \"$eq\":\"any\"\n"
+    query << "    }\n"
+    query << "  }\n"
+    query << ")\n"
+    query << ".include(\"name\", \"repo\", \"path\", \"type\", \"actual_sha1\")\n"
+    query << ".sort(\n"
+    query << "  {\n"
+    query << "    \"$asc\":[\n"
+    query << "      \"type\",\n"
+    query << "      \"name\"\n"
+    query << "    ]\n"
+    query << "  }\n"
+    query << ")"
+
+    return query
+  end
+
+  def post_query(url, query, user_name, password_hash)
+    uri_post = URI.parse(url)
+    http_post = Net::HTTP.new(uri_post.host, uri_post.port)
+
+    request_post = Net::HTTP::Post.new(uri_post.request_uri)
+
+    request_post["Content-Type"] = "text/plain"
+    request_post.basic_auth user_name, password_hash
+    request_post.body = query.join
+    
+    response = http_post.request(request_post)
+
+    return response
+  end
+
   desc "Synchronizes an Artifactory repository on a linux server."
 
   defaultfor :osfamily => :RedHat
@@ -50,16 +91,11 @@ Puppet::Type.type(:repository_sync).provide :linux do
       # AQL api search url
       aql_url = 'http://' + artifactory_host + '/artifactory/api/search/aql'
 
-      # Credential are supplied use them. Otherwise try anonymous
-      if defined?(user) and defined?(password)
-        site = RestClient::Resource.new aql_url, user, password
-      else
-        site = RestClient::Resource.new aql_url
-      end
+      query = repository_item_query(repository_name)
 
-      response = site.post 'items.find( { "repo":{"$eq":"' + repository_name + '"}, "type":{"$eq":"any"} }).include("name", "repo", "path", "type", "actual_sha1").sort({"$asc" : ["type","name"]})', :content_type => 'text/plain'
+      response  = post_query(aql_url, query, user, password)
 
-      results = JSON.parse(response.to_str)['results']
+      results = JSON.parse(response.body)['results']
 
       results.each do |result|
         # Create item path and then remove all instances of ./
@@ -112,6 +148,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
   def write_file(result, destination, artifactory_host)
     Net::HTTP.start(artifactory_host) do |http|
       resp = http.get('/artifactory/' + result['repo'] + '/' + result['path'] + '/' + result['name'])
+
       open(destination + result['path'] + '/' + result['name'], 'wb') do |file|
         file.write(resp.body)
       end
@@ -154,16 +191,11 @@ Puppet::Type.type(:repository_sync).provide :linux do
     # AQL api search url
     aql_url = 'http://' + artifactory_host + '/artifactory/api/search/aql'
 
-    # Credential are supplied use them. Otherwise try anonymous
-    if defined?(user) and defined?(password)
-      site = RestClient::Resource.new aql_url, user, password
-    else
-      site = RestClient::Resource.new aql_url
-    end
+    query = repository_item_query(repository_name)
 
-    response = site.post 'items.find( { "repo":{"$eq":"' + repository_name + '"}, "type":{"$eq":"any"} }).include("name", "repo", "path", "type", "actual_sha1").sort({"$asc" : ["type","name"]})', :content_type => 'text/plain'
-
-    results = JSON.parse(response.to_str)['results']
+    response  = post_query(aql_url, query, user, password)
+      
+    results = JSON.parse(response.body)['results']
 
     results.each do |result|
       # Create item path and then remove all instances of ./
