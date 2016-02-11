@@ -7,7 +7,7 @@ class artifactory_utils::install {
   package {'rest-client':
     ensure   => present,
     provider => 'puppet_gem',
-    require  => [ Package['gcc'], Package['ruby-devel'], Package['rubygem'] ],
+    require  => [ Package['gcc'], Package['ruby-devel'] ],
   }
 
   package { 'gcc':
@@ -18,9 +18,9 @@ class artifactory_utils::install {
     ensure => present,
   }
 
-  package { 'rubygem':
-    ensure => present,
-  }
+  #package { 'rubygem':
+  #  ensure => present,
+  #}
 
   #package { 'rubygem-rest-client':
   #  ensure => present,
