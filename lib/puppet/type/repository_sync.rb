@@ -2,9 +2,9 @@ Puppet::Type.newtype(:repository_sync) do
   @doc = "Synchronizes an Artifactory repoisitory on the local file system."
   ensurable
 
-#  autorequire(:package) do
-#    'rest-client'
-#  end
+  autorequire(:package) do
+    'rest-client'
+  end
 
   # Validate mandatory params
   validate do
