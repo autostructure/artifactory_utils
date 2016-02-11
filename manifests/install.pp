@@ -3,26 +3,4 @@
 # This class is called from artifactory_utils for install.
 #
 class artifactory_utils::install {
-  # Requires some gems
-  package {'rest-client':
-    ensure   => present,
-    provider => 'puppet_gem',
-    require  => [ Package['gcc-c++'] ],
-  }
-
-  package { 'gcc-c++':
-    ensure => present,
-  }
-
-  #package { 'ruby-devel':
-  #  ensure => present,
-  #}
-
-  #package { 'rubygem':
-  #  ensure => present,
-  #}
-
-  #package { 'rubygem-rest-client':
-  #  ensure => present,
-  #}
 }
