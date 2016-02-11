@@ -2,20 +2,11 @@ Puppet::Type.newtype(:repository_sync) do
   @doc = "Synchronizes an Artifactory repoisitory on the local file system."
   ensurable
 
-  autorequire(:package) do
-    'rest-client'
-  end
-
   # Validate mandatory params
   validate do
     raise Puppet::Error, 'artifactory_host is required.' unless self[:artifactory_host]
     raise Puppet::Error, 'destination is required.' unless self[:destination]
-    raise Pupper::Error, "expected catalog to contain Package['rest-client']" unless defined(Package['rest-client'])
   end
-
-#  unless defined(Package['rest-client']) do
-#    fail("expected catalog to contain Package['rest-client']")
-#  end
 
   newparam(:repository, :namevar => true) do
     desc "The artifactory repository we are looking to synchronize locally."
