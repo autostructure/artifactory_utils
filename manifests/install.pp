@@ -3,11 +3,6 @@
 # This class is called from artifactory_utils for install.
 #
 class artifactory_utils::install {
-
-  package { $::artifactory_utils::package_name:
-    ensure => present,
-  }
-
   # Requires some gems
   package {'rest-client':
     ensure   => present,
