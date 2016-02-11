@@ -1,6 +1,7 @@
 require 'fileutils'
 require 'rest-client'
 
+# Synchronized an artifatory repository by name to a destination
 Puppet::Type.type(:repository_sync).provide :linux do
   desc "Synchronizes an Artifactory repository on a linux server."
 
@@ -29,6 +30,10 @@ Puppet::Type.type(:repository_sync).provide :linux do
       # Assign variables assigned by parameters
       artifactory_host = @resource.value(:artifactory_host)
       destination      = @resource.value(:destination)
+      user             = @resource.value(:user)
+      password         = @resource.value(:password)
+
+      repository_name  = resource[:name]
 
       # All of the directories under the root
       all_directories = Dir.glob(destination + '**/')
@@ -42,16 +47,27 @@ Puppet::Type.type(:repository_sync).provide :linux do
       # The files that should not be removed
       current_files = []
 
-      site = RestClient::Resource.new('http://' + artifactory_host + '/artifactory/api/search/aql', 'bryanjbelanger', 'AP72yHkFrzshjdcHt6R3WbJxqsq')
+      # AQL api search url
+      aql_url = 'http://' + artifactory_host + '/artifactory/api/search/aql'
 
-      response = site.post 'items.find( { "repo":{"$eq":"libs-release-local"}, "type":{"$eq":"any"} }).include("name", "repo", "path", "type", "actual_sha1").sort({"$asc" : ["type","name"]})', :content_type => 'text/plain'
+      # Credential are supplied use them. Otherwise try anonymous
+      if defined?(user) and defined?(password)
+        site = RestClient::Resource.new aql_url, user, password
+      else
+        site = RestClient::Resource.new aql_url
+      end
+
+      response = site.post 'items.find( { "repo":{"$eq":"' + repository_name + '"}, "type":{"$eq":"any"} }).include("name", "repo", "path", "type", "actual_sha1").sort({"$asc" : ["type","name"]})', :content_type => 'text/plain'
 
       results = JSON.parse(response.to_str)['results']
 
       results.each do |result|
         # Create item path and then remove all instances of ./
         item_path = destination + result['path'] + '/' + result['name']
-        item_path.gsub!(/\/\./, '')
+
+        item_path.gsub!(/\/\.\//, '/')
+        item_path.gsub!(/\/\.$/, '')
+
 
         if result['type'] == 'folder'
           if !all_directories.include?(item_path + '/')
@@ -65,14 +81,11 @@ Puppet::Type.type(:repository_sync).provide :linux do
           if !File.exist?(item_path)
             return false
           else
-            sha_resource = RestClient::Resource.new('http://' + artifactory_host + '/artifactory/api/storage/' + result['repo'] + '/' + result['path'] + '/' + result['name'], 'bryanjbelanger', 'AP72yHkFrzshjdcHt6R3WbJxqsq')
-            sha_response = JSON.parse(sha_resource.get)['checksums']['sha1']
-
             # Compute digest for a file
             sha1 = Digest::SHA1.file item_path
 
             # Make sure the sha1 hashes match
-            if sha1 != sha_response
+            if sha1 != result['actual_sha1']
               return false
             end
           end
@@ -94,6 +107,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
       return true
     end
   end
+
   # Write a new file to the destination
   def write_file(result, destination, artifactory_host)
     Net::HTTP.start(artifactory_host) do |http|
@@ -119,6 +133,11 @@ Puppet::Type.type(:repository_sync).provide :linux do
     # Assign variables assigned by parameters
     artifactory_host = @resource.value(:artifactory_host)
     destination      = @resource.value(:destination)
+    user             = @resource.value(:user)
+    password         = @resource.value(:password)
+
+    repository_name  = resource[:name]
+
 
     # All of the directories under the root
     all_directories = Dir.glob(destination + '**/')
@@ -132,16 +151,26 @@ Puppet::Type.type(:repository_sync).provide :linux do
     # The files that should not be removed
     current_files = []
 
-    site = RestClient::Resource.new('http://' + artifactory_host + '/artifactory/api/search/aql', 'bryanjbelanger', 'AP72yHkFrzshjdcHt6R3WbJxqsq')
+    # AQL api search url
+    aql_url = 'http://' + artifactory_host + '/artifactory/api/search/aql'
 
-    response = site.post 'items.find( { "repo":{"$eq":"libs-release-local"}, "type":{"$eq":"any"} }).include("name", "repo", "path", "type", "actual_sha1").sort({"$asc" : ["type","name"]})', :content_type => 'text/plain'
+    # Credential are supplied use them. Otherwise try anonymous
+    if defined?(user) and defined?(password)
+      site = RestClient::Resource.new aql_url, user, password
+    else
+      site = RestClient::Resource.new aql_url
+    end
+
+    response = site.post 'items.find( { "repo":{"$eq":"' + repository_name + '"}, "type":{"$eq":"any"} }).include("name", "repo", "path", "type", "actual_sha1").sort({"$asc" : ["type","name"]})', :content_type => 'text/plain'
 
     results = JSON.parse(response.to_str)['results']
 
     results.each do |result|
       # Create item path and then remove all instances of ./
       item_path = destination + result['path'] + '/' + result['name']
-      item_path.gsub!(/\/\./, '')
+
+      item_path.gsub!(/\/\.\//, '/')
+      item_path.gsub!(/\/\.$/, '')
 
       if result['type'] == 'folder'
         current_directories.push item_path + '/'
@@ -152,13 +181,11 @@ Puppet::Type.type(:repository_sync).provide :linux do
         if !File.exist?(item_path)
           write_file result, destination, artifactory_host
         else
-          sha_resource = RestClient::Resource.new('http://' + artifactory_host + '/artifactory/api/storage/' + result['repo'] + '/' + result['path'] + '/' + result['name'], 'bryanjbelanger', 'AP72yHkFrzshjdcHt6R3WbJxqsq')
-          sha_response = JSON.parse(sha_resource.get)['checksums']['sha1']
-
           # Compute digest for a file
-          sha256 = Digest::SHA1.file item_path
+          sha1 = Digest::SHA1.file item_path
 
-          if sha256 != sha_response
+          # Make sure the sha1 hashes match
+          if sha1 != result['actual_sha1']
             write_file result, destination, artifactory_host
           end
         end
