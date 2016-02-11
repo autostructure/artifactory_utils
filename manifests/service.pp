@@ -4,11 +4,11 @@
 # It ensure the service is running.
 #
 class artifactory_utils::service {
-
-  service { $::artifactory_utils::service_name:
-    ensure     => running,
-    enable     => true,
-    hasstatus  => true,
-    hasrestart => true,
-  }
+  # No service to install
+  #  service { $::artifactory_utils::service_name:
+  #  ensure     => running,
+  #  enable     => true,
+  #  hasstatus  => true,
+  #  hasrestart => true,
+  #}
 }
