@@ -2,6 +2,10 @@ Puppet::Type.newtype(:repository_sync) do
   @doc = "Synchronizes an Artifactory repoisitory on the local file system."
   ensurable
 
+  autorequire(:package) do
+    'rest-client'
+  end
+
   # Validate mandatory params
   validate do
     raise Puppet::Error, 'artifactory_host is required.' unless self[:artifactory_host]
