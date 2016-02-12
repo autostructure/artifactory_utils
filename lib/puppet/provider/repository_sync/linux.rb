@@ -3,6 +3,24 @@ require 'fileutils'
 # Synchronized an artifatory repository by name to a destination
 Puppet::Type.type(:repository_sync).provide :linux do
 
+  # Given a key and properties array return the value
+  def get_value(properties, key)
+    # If the array is nil return nil
+    if properties.nil?
+      return nil
+    end
+
+    properties.each do |property|
+      # Check key
+      if property['key'] == key
+        return property['value']
+      end
+    end
+
+    # return nil if no value found
+    return nil
+  end
+
   def repository_item_query(repository_name)
     query = []
 
@@ -16,7 +34,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
     query << "    }\n"
     query << "  }\n"
     query << ")\n"
-    query << ".include(\"name\", \"repo\", \"path\", \"type\", \"actual_sha1\")\n"
+    query << ".include(\"name\", \"repo\", \"path\", \"type\", \"actual_sha1\", \"property\")\n"
     query << ".sort(\n"
     query << "  {\n"
     query << "    \"$asc\":[\n"
@@ -104,6 +122,39 @@ Puppet::Type.type(:repository_sync).provide :linux do
         item_path.gsub!(/\/\.\//, '/')
         item_path.gsub!(/\/\.$/, '')
 
+        # If the file doesn't exist sync repo
+        if !File.exist?(item_path)
+          return false
+        else
+          # Get owner and group
+          owner = Etc.getpwuid(File.stat(item_path).uid).name
+          group = Etc.getpwuid(File.stat(item_path).gid).name
+          mode =  (File.stat(item_path).mode & 07777).to_s(8)
+
+          artifactory_owner = get_value(result['properties'], 'owner')
+          artifactory_group = get_value(result['properties'], 'group')
+          artifactory_mode = get_value(result['properties'], 'mode')
+
+          # If the owner is defined make sure it matches
+          if !artifactory_owner.nil? and artifactory_owner != owner
+            return false
+          end
+
+          # If the group is defined make sure it matches
+          if !artifactory_group.nil? and artifactory_group != group
+            return false
+          end
+
+          # If the mode is defined make sure it matches
+          if !artifactory_mode.nil? and artifactory_mode != mode
+            # Remove leading 0 if on artifactory_mode
+            artifactory_mode.gsub!(/^0/, '')
+
+            if artifactory_mode != mode
+              return false
+            end
+          end
+        end
 
         if result['type'] == 'folder'
           if !all_directories.include?(item_path + '/')
@@ -204,22 +255,56 @@ Puppet::Type.type(:repository_sync).provide :linux do
       item_path.gsub!(/\/\.\//, '/')
       item_path.gsub!(/\/\.$/, '')
 
+      # If the item (folder or file) doesn't exist create it
+      if !File.exist?(item_path)
+        if result['type'] == 'folder'
+          Dir.mkdir item_path, mode = artifactory_mode
+        else
+          write_file result, destination, artifactory_host
+        end
+      end
+
+      # Get owner and group
+      owner = Etc.getpwuid(File.stat(item_path).uid).name
+      group = Etc.getpwuid(File.stat(item_path).gid).name
+      mode =  (File.stat(item_path).mode & 07777).to_s(8)
+
+      artifactory_owner = get_value(result['properties'], 'owner')
+      artifactory_group = get_value(result['properties'], 'group')
+      artifactory_mode = get_value(result['properties'], 'mode')
+
+      # If the owner is defined make sure it matches
+      if !artifactory_owner.nil? and artifactory_owner != owner
+        uid = Etc.getpwnam(artifactory_owner).uid
+
+        File.chown(uid, nil, item_path)
+      end
+
+      if !artifactory_group.nil? and artifactory_group != group
+        gid = Etc.getpwnam(artifactory_group).uid
+        
+        File.chown(nil, gid, item_path)
+      end
+
+      # If the mode is defined make sure it matches
+      if !artifactory_mode.nil? and artifactory_mode != mode
+
+        artifactory_mode.gsub!(/^([1-9])/, '0\1')
+
+        File.chmod(artifactory_mode.to_i(8), item_path)
+      end
+
       if result['type'] == 'folder'
         current_directories.push item_path + '/'
-        FileUtils.mkdir_p item_path
       else
         current_files.push(item_path)
 
-        if !File.exist?(item_path)
-          write_file result, destination, artifactory_host
-        else
-          # Compute digest for a file
-          sha1 = Digest::SHA1.file item_path
+        # Compute digest for a file
+        sha1 = Digest::SHA1.file item_path
 
-          # Make sure the sha1 hashes match
-          if sha1 != result['actual_sha1']
-            write_file result, destination, artifactory_host
-          end
+        # Make sure the sha1 hashes match
+        if sha1 != result['actual_sha1']
+          write_file result, destination, artifactory_host
         end
       end
     end
