@@ -13,35 +13,55 @@
 
 ## Overview
 
-A one-maybe-two sentence summary of what the module does/what problem it solves. This is your 30 second elevator pitch for your module. Consider including OS/Puppet version it works with.       
+Providers and functions that allow Puppet to take advantage of full range of Artifactory capabilities.
 
 ## Module Description
 
-If applicable, this section should have a brief description of the technology the module integrates with and what that integration enables. This section should answer the questions: "What does this module *do*?" and "Why would I use it?"
+Autostructure's artifactory_util module introduces providers which are used to manage resources contained in Artifactory.
 
-If your module has a range of functionality (installation, configuration, management, etc.) this is the time to mention it.
+This module extends configuration management to Artifactory. Packages, or other files, can be deployed through a simple http server. However Artifactory allows searches, maintains properties and stores checksums externally. These benefits can be leveraged by Puppet to enforce state and allow dynamic changes through the Artifactory UI.
+
+If you need to deploy packages from Artifactory, or you want teams to manage the state of files from Artifactory you should use these utilities.
 
 ## Setup
 
 ### What artifactory_utils affects
 
-* A list of files, packages, services, or operations that the module will alter, impact, or execute on the system it's installed on.
-* This is a great place to stick any warnings.
-* Can be in list or paragraph form. 
+* Files, directories and file systems in general.
+* If synchronizing a repository use a unique destination. Anything under the synchronization tree WILL BE MODIFIED OR DELETED to conform to what is in Artifactory.
 
 ### Setup Requirements **OPTIONAL**
 
-If your module requires anything extra before setting up (pluginsync enabled, etc.), mention it here. 
+You will need a service account setup for Puppet in Artifactory. If you add credentials into hiera be sure to use [hiera-eyaml](https://github.com/TomPoulton/hiera-eyaml) to secure your api-key.
 
 ### Beginning with artifactory_utils
 
-The very basic steps needed for a user to get the module up and running. 
+The very basic steps needed for a user to get the module up and running.
 
 If your most recent release breaks compatibility or requires particular steps for upgrading, you may wish to include an additional section here: Upgrading (For an example, see http://forge.puppetlabs.com/puppetlabs/firewall).
 
 ## Usage
 
-Put the classes, types, and resources for customizing, configuring, and doing the fancy stuff with your module here. 
+Synchronize a repository:
+
+~~~puppet
+  repository_sync {'my-local-repo':
+    ensure           => present,
+    destination      => $destination,
+    artifactory_host => $artifactory_host,
+    user             => $user,
+    password         => $password,
+  }
+~~~
+
+Delete a repository:
+
+~~~puppet
+  repository_sync {'my-local-repo':
+    ensure           => absent,
+    destination      => $destination,
+  }
+~~~
 
 ## Reference
 
@@ -49,12 +69,8 @@ Here, list the classes, types, providers, facts, etc contained in your module. T
 
 ## Limitations
 
-This is where you list OS compatibility, version compatibility, etc.
+This currently only work on *-nix nodes.
 
 ## Development
 
-Since your module is awesome, other users will want to play with it. Let them know what the ground rules for contributing are.
-
-## Release Notes/Contributors/Etc **Optional**
-
-If you aren't using changelog, put your release notes here (though you should consider using changelog). You may also add any additional sections you feel are necessary or important to include here. Please use the `## ` header. 
+No rules for contributing yet, but any assistance on setting up spec is greatly appreciated.
