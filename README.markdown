@@ -65,7 +65,7 @@ Delete a repository:
 
 Owners, groups and modes can be assigned through thier respective properties in Artifactory:
 
-![alt text](../images/repository.png "Artifactory example")
+![alt text](https://raw.githubusercontent.com/autostructure/artifactory_utils/master/images/repository.png "Artifactory example")
 
 ## Reference
 
