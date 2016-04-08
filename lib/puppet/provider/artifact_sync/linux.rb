@@ -1,4 +1,5 @@
 require 'fileutils'
+require 'oper-uri'
 
 # Synchronized an artifatory repository by name to a destination
 Puppet::Type.type(:artifact_sync).provide :linux do
@@ -30,34 +31,20 @@ Puppet::Type.type(:artifact_sync).provide :linux do
 
     request_get = Net::HTTP::Get.new(uri_get.request_uri)
 
+    # user and password_hash are here use auth
+    if user_name and password_hash {
+      request_get.basic_auth user_name, password_hash
+    }
+
     response = http_get.request(request_get)
 
     return response
   end
 
-  def post_query(url, query, user_name, password_hash)
-    uri_post = URI.parse(url)
-    http_post = Net::HTTP.new(uri_post.host, uri_post.port)
-
-    request_post = Net::HTTP::Post.new(uri_post.request_uri)
-
-    request_post["Content-Type"] = "text/plain"
-    request_post.basic_auth user_name, password_hash
-    request_post.body = query.join
-
-    response = http_post.request(request_post)
-
-    return response
-  end
-
   # Write a new file to the destination
-  def write_file(repository_name, path_to_file, destination, artifactory_host)
-    Net::HTTP.start(artifactory_host) do |http|
-      resp = http.get('/artifactory/' + repository_name + '/' + path_to_file)
-
-      open(destination, 'wb') do |file|
-        file.write(resp.body)
-      end
+  def write_file(source, destination)
+    open(destination) do |file|
+      file << open(ource).read
     end
   end
 
@@ -69,19 +56,9 @@ Puppet::Type.type(:artifact_sync).provide :linux do
     # Assign variables assigned by parameters
     destination      = resource[:name]
 
-    artifactory_host = @resource.value(:artifactory_host)
+    source           = @resource.value(:source)
     user             = @resource.value(:user)
     password         = @resource.value(:password)
-    repository_name  = @resource.value(:repository_name)
-    path_to_file     = @resource.value(:path_to_file)
-
-    #destination      = '/tmp/test.txt'
-
-    #artifactory_host = 'artifactory.azcender.com'
-    #user             = 'bryan'
-    #password         = 'AP3BsrCHWPkwniwUgbgp28RYqKW'
-    #repository_name  = 'sync-local'
-    #path_to_file     = '/fslink/11gR2/dir1/app1/file1.txt'
 
     # If the destination doesn't exists return false
     if !File.exists?(destination)
@@ -92,10 +69,11 @@ Puppet::Type.type(:artifact_sync).provide :linux do
     when 'absent'
       return true
     else
-      # Get SHA1 value from Artifactory
+      # Get the file path
+      file_path = source.scan(/.+\/artifactory\/(.+)$/)
 
       # File info URL
-      file_info = 'http://' + artifactory_host + '/artifactory/api/storage/' + repository_name + '/' + path_to_file
+      file_info = 'http://' + artifactory_host + '/artifactory/api/storage/' + file_path
 
       response  = get_query(file_info, user, password)
 
@@ -125,21 +103,13 @@ Puppet::Type.type(:artifact_sync).provide :linux do
   end
 
   def create
-
     # Assign variables assigned by parameters
     destination      = resource[:name]
 
-    artifactory_host = @resource.value(:artifactory_host)
+    source           = @resource.value(:source)
     user             = @resource.value(:user)
     password         = @resource.value(:password)
-    repository_name  = @resource.value(:repository_name)
-    path_to_file     = @resource.value(:path_to_file)
 
-    # File info URL
-    file_info = 'http://' + artifactory_host + '/artifactory/' + repository_name + '/' + path_to_file
-
-    response  = get_query(file_info, user, password)
-
-    write_file repository_name, path_to_file, destination, artifactory_host
+    write_file source, destination
   end
 end
