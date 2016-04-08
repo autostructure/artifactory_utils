@@ -1,3 +1,5 @@
+require 'uri'
+
 Puppet::Type.newtype(:artifact_sync) do
   @doc = "Synchronizes an artifact to the local file system."
   ensurable
@@ -14,11 +16,15 @@ Puppet::Type.newtype(:artifact_sync) do
     end
   end
 
-  newparam(:source) do
+  newparam(:source_url) do
     desc "The url of the file to sync."
 
     validate do |value|
-      raise ArgumentError, "The file path must not be empty." if value.empty?
+      raise ArgumentError, "The source url must not be empty." if value.empty?
+
+      unless value =~ URI.regexp
+        raise ArgumentError, "The source url is not a properly formatted url"
+      end
     end
   end
 

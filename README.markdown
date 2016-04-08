@@ -42,6 +42,8 @@ If your most recent release breaks compatibility or requires particular steps fo
 
 ## Usage
 
+### Example of synchronizing a repository
+
 Synchronize a repository:
 
 ~~~puppet
@@ -63,9 +65,28 @@ Delete a repository:
   }
 ~~~
 
-Owners, groups and modes can be assigned through thier respective properties in Artifactory:
+Owners, groups and modes can be assigned through their respective properties in Artifactory:
 
 ![alt text](https://raw.githubusercontent.com/autostructure/artifactory_utils/master/images/repository.png "Artifactory example")
+
+### Example of synchronizing a file
+
+Synchronize a file:
+
+~~~puppet
+  artifact_sync {'/opt/tomcat/webapps/my_app.war':
+    ensure     => present,
+    source_url => 'http://artifactory.mydomain.com/artifactory/libs-release-local/com/mydomain/myapp/[RELEASE]/myapp-[RELEASE].war'
+  }
+~~~
+
+Delete an artifact:
+
+~~~puppet
+  artifact_sync {'/opt/tomcat/webapps/my_app.war':
+    ensure => absent,
+  }
+~~~
 
 ## Reference
 
