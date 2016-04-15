@@ -255,22 +255,11 @@ Puppet::Type.type(:repository_sync).provide :linux do
       item_path.gsub!(/\/\.\//, '/')
       item_path.gsub!(/\/\.$/, '')
 
-
-      #if !File.exist?(item_path)
-      #  if result['type'] == 'folder'
-      #    Dir.mkdir item_path
-      #  else
-      #    write_file result, destination, artifactory_host
-      #  end
-      #end
-
       # If the item (folder or file) doesn't exist create it
-      if result['type'] == 'folder'
-        unless Dir.exist?(item_path)
+      if !File.exist?(item_path)
+        if result['type'] == 'folder'
           Dir.mkdir item_path
-        end
-      else
-        unless File.exist?(item_path)
+        else
           write_file result, destination, artifactory_host
         end
       end
