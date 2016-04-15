@@ -266,11 +266,11 @@ Puppet::Type.type(:repository_sync).provide :linux do
 
       # If the item (folder or file) doesn't exist create it
       if result['type'] == 'folder'
-        if !Dir.exist?(item_path)
+        unless Dir.exist?(item_path)
           Dir.mkdir item_path
         end
       else
-        if !File.exist?(item_path)
+        unless File.exist?(item_path)
           write_file result, destination, artifactory_host
         end
       end
