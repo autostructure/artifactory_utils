@@ -56,7 +56,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
     request_post["Content-Type"] = "text/plain"
     request_post.basic_auth user_name, password_hash
     request_post.body = query.join
-    
+
     response = http_post.request(request_post)
 
     return response
@@ -245,7 +245,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
     query = repository_item_query(repository_name)
 
     response  = post_query(aql_url, query, user, password)
-      
+
     results = JSON.parse(response.body)['results']
 
     results.each do |result|
@@ -255,11 +255,22 @@ Puppet::Type.type(:repository_sync).provide :linux do
       item_path.gsub!(/\/\.\//, '/')
       item_path.gsub!(/\/\.$/, '')
 
+
+      #if !File.exist?(item_path)
+      #  if result['type'] == 'folder'
+      #    Dir.mkdir item_path
+      #  else
+      #    write_file result, destination, artifactory_host
+      #  end
+      #end
+
       # If the item (folder or file) doesn't exist create it
-      if !File.exist?(item_path)
-        if result['type'] == 'folder'
+      if result['type'] == 'folder'
+        if !Dir.exist?(item_path)
           Dir.mkdir item_path
-        else
+        end
+      else
+        if !File.exist?(item_path)
           write_file result, destination, artifactory_host
         end
       end
@@ -282,7 +293,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
 
       if !artifactory_group.nil? and artifactory_group != group
         gid = Etc.getpwnam(artifactory_group).uid
-        
+
         File.chown(nil, gid, item_path)
       end
 
