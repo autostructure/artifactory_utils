@@ -35,4 +35,12 @@ Puppet::Type.newtype(:artifact_sync) do
   newparam(:password) do
     desc "The user password for Artifactory basic auth."
   end
+
+  newparam(:owner) do
+    desc "The owner of the file at the destination"
+  end
+
+  newparam(:group) do
+    desc "The group of the file at the destination"
+  end
 end

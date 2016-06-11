@@ -37,13 +37,15 @@ Puppet::Type.type(:artifact_sync).provide :linux do
   end
 
   # Write a new file to the destination
-  def write_file(url, destination, user_name, password_hash)
+  def write_file(url, destination, user_name, password_hash, owner, group)
     response = get_query(url, user_name, password_hash)
 
     if response.status[0] == "200"
       open(destination, 'wb') do |file|
         file.write(response.read)
       end
+
+      FileUtils.chown owner, group, destination
     else
       raise Puppet::Error, 'No file can be found at ' + url
     end
@@ -112,7 +114,9 @@ Puppet::Type.type(:artifact_sync).provide :linux do
     source_url       = @resource.value(:source_url)
     user             = @resource.value(:user)
     password         = @resource.value(:password)
+    owner            = @resource.value(:owner)
+    group            = @resource.value(:group)
 
-    write_file source_url, destination, user, password
+    write_file source_url, destination, user, password, owner, group
   end
 end
