@@ -200,8 +200,10 @@ Puppet::Type.type(:repository_sync).provide :linux do
     Net::HTTP.start(artifactory_host) do |http|
       resp = http.get('/artifactory/' + result['repo'] + '/' + result['path'] + '/' + result['name'])
 
-      open(destination + result['path'] + '/' + result['name'], 'wb') do |file|
-        file.write(resp.body)
+      open(destination + result['path'] + '/' + result['name'], 'wb') do |io|
+        resp.read_body do |chunk|
+          io.write chunk
+        end
       end
     end
   end

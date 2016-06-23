@@ -41,8 +41,10 @@ Puppet::Type.type(:artifact_sync).provide :linux do
     response = get_query(url, user_name, password_hash)
 
     if response.status[0] == "200"
-      open(destination, 'wb') do |file|
-        file.write(response.read)
+      open(destination, 'wb') do |io|
+        response.read_body do |chunk|
+          io.write chunk
+        end
       end
 
       FileUtils.chown owner, group, destination
