@@ -1,5 +1,4 @@
 require 'fileutils'
-require 'open-uri'
 
 # Synchronized an artifatory repository by name to a destination
 Puppet::Type.type(:artifact_sync).provide :linux do
@@ -38,18 +37,27 @@ Puppet::Type.type(:artifact_sync).provide :linux do
 
   # Write a new file to the destination
   def write_file(url, destination, user_name, password_hash, owner, group)
-    response = get_query(url, user_name, password_hash)
+    # [RELEASE] has special signifiance in Artifactory. Let's escape it
+    escaped_url = url.gsub(/\[RELEASE\]/, '%5BRELEASE%5D')
 
-    if response.status[0] == "200"
-      open(destination, 'wb') do |io|
-        response.read_body do |chunk|
-          io.write chunk
+    uri = URI(escaped_url)
+
+    Net::HTTP.start(uri.host, uri.port) do |http|
+      request = Net::HTTP::Get.new uri
+
+      http.request request do |response|
+        if response.code == "200"
+          open destination, 'w' do |io|
+            response.read_body do |chunk|
+              io.write chunk
+            end
+          end
+        else
+          raise Puppet::Error, 'No file can be found at ' + url
         end
       end
 
       FileUtils.chown owner, group, destination
-    else
-      raise Puppet::Error, 'No file can be found at ' + url
     end
   end
 
