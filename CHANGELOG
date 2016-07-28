@@ -1,2 +1,7 @@
+2016-07-28 Release 1.2.15
+- Add automated testing
+- Clean up ruby lint
+- Turn off SSL verification
+
 2016-06-23 Release 1.2.12
 - Use streaming for artifact_sync increasing performance and allowing syncing of large files
