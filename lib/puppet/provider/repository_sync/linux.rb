@@ -2,7 +2,6 @@ require 'fileutils'
 
 # Synchronized an artifatory repository by name to a destination
 Puppet::Type.type(:repository_sync).provide :linux do
-
   # Given a key and properties array return the value
   def get_value(properties, key)
     # If the array is nil return nil
@@ -18,7 +17,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
     end
 
     # return nil if no value found
-    return nil
+    nil
   end
 
   def repository_item_query(repository_name)
@@ -44,7 +43,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
     query << "  }\n"
     query << ")"
 
-    return query
+    query
   end
 
   def post_query(url, query, user_name, password_hash)
@@ -59,12 +58,12 @@ Puppet::Type.type(:repository_sync).provide :linux do
 
     response = http_post.request(request_post)
 
-    return response
+    response
   end
 
   desc "Synchronizes an Artifactory repository on a linux server."
 
-  defaultfor :osfamily => :RedHat
+  defaultfor osfamily: :RedHat
 
   # The resource exists if all files and folders in place and
   # the files match the ones in Artifactory
@@ -79,12 +78,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
       all_directories = Dir.glob(destination + '*')
 
       # If there are any directories or files return true
-      if all_directories.length > 0
-        return true
-      else
-        return false
-      end
-
+      return !all_directories.empty?
     else
       # Assign variables assigned by parameters
       artifactory_host = @resource.value(:artifactory_host)
@@ -98,7 +92,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
       all_directories = Dir.glob(destination + '**/')
 
       # All of the files under the root
-      all_files = Dir.glob(destination + '**/*').reject {|fn| File.directory?(fn) }
+      all_files = Dir.glob(destination + '**/*').reject { |fn| File.directory?(fn) }
 
       # The directories that should not be removed
       current_directories = []
@@ -111,7 +105,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
 
       query = repository_item_query(repository_name)
 
-      response  = post_query(aql_url, query, user, password)
+      response = post_query(aql_url, query, user, password)
 
       results = JSON.parse(response.body)['results']
 
@@ -119,75 +113,66 @@ Puppet::Type.type(:repository_sync).provide :linux do
         # Create item path and then remove all instances of ./
         item_path = destination + result['path'] + '/' + result['name']
 
-        item_path.gsub!(/\/\.\//, '/')
-        item_path.gsub!(/\/\.$/, '')
+        item_path.gsub!(%r{\/\.\/}, '/')
+        item_path.gsub!(%r{\/\.$}, '')
 
         # If the file doesn't exist sync repo
-        if !File.exist?(item_path)
+        return false if !File.exist?(item_path)
+
+        # Get owner and group
+        owner = Etc.getpwuid(File.stat(item_path).uid).name
+        group = Etc.getpwuid(File.stat(item_path).gid).name
+        mode =  (File.stat(item_path).mode & 0o7777).to_s(8)
+
+        artifactory_owner = get_value(result['properties'], 'owner')
+        artifactory_group = get_value(result['properties'], 'group')
+        artifactory_mode = get_value(result['properties'], 'mode')
+
+        # If the owner is defined make sure it matches
+        if !artifactory_owner.nil? && artifactory_owner != owner
           return false
-        else
-          # Get owner and group
-          owner = Etc.getpwuid(File.stat(item_path).uid).name
-          group = Etc.getpwuid(File.stat(item_path).gid).name
-          mode =  (File.stat(item_path).mode & 07777).to_s(8)
+        end
 
-          artifactory_owner = get_value(result['properties'], 'owner')
-          artifactory_group = get_value(result['properties'], 'group')
-          artifactory_mode = get_value(result['properties'], 'mode')
+        # If the group is defined make sure it matches
+        if !artifactory_group.nil? && artifactory_group != group
+          return false
+        end
 
-          # If the owner is defined make sure it matches
-          if !artifactory_owner.nil? and artifactory_owner != owner
+        # If the mode is defined make sure it matches
+        if !artifactory_mode.nil? && artifactory_mode != mode
+          # Remove leading 0 if on artifactory_mode
+          artifactory_mode.gsub!(/^0/, '')
+
+          if artifactory_mode != mode
             return false
-          end
-
-          # If the group is defined make sure it matches
-          if !artifactory_group.nil? and artifactory_group != group
-            return false
-          end
-
-          # If the mode is defined make sure it matches
-          if !artifactory_mode.nil? and artifactory_mode != mode
-            # Remove leading 0 if on artifactory_mode
-            artifactory_mode.gsub!(/^0/, '')
-
-            if artifactory_mode != mode
-              return false
-            end
           end
         end
 
         if result['type'] == 'folder'
-          if !all_directories.include?(item_path + '/')
-            return false
-          else
-            current_directories.push item_path + '/'
-          end
+          return false if !all_directories.include?(item_path + '/')
+
+          current_directories.push item_path + '/'
         else
           current_files.push(item_path)
 
-          if !File.exist?(item_path)
-            return false
-          else
-            # Compute digest for a file
-            sha1 = Digest::SHA1.file item_path
+          return false if !File.exist?(item_path)
+          # Compute digest for a file
+          sha1 = Digest::SHA1.file item_path
 
-            # Make sure the sha1 hashes match
-            if sha1 != result['actual_sha1']
-              return false
-            end
-          end
+          # Make sure the sha1 hashes match
+          return fasle if sha1 != result['actual_sha1']
         end
       end
 
       file_differences = all_files - current_files
 
-      if file_differences.length > 0
+      if !file_differences.empty?
         return false
       end
 
       directory_differences = all_directories - current_directories
 
-      if directory_differences.length > 0
+      if !directory_differences.empty?
         return false
       end
 
@@ -228,12 +213,11 @@ Puppet::Type.type(:repository_sync).provide :linux do
 
     repository_name  = resource[:name]
 
-
     # All of the directories under the root
     all_directories = Dir.glob(destination + '**/')
 
     # All of the files under the root
-    all_files = Dir.glob(destination + '**/*').reject {|fn| File.directory?(fn) }
+    all_files = Dir.glob(destination + '**/*').reject { |fn| File.directory?(fn) }
 
     # The directories that should not be removed
     current_directories = []
@@ -246,7 +230,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
 
     query = repository_item_query(repository_name)
 
-    response  = post_query(aql_url, query, user, password)
+    response = post_query(aql_url, query, user, password)
 
     results = JSON.parse(response.body)['results']
 
@@ -254,8 +238,8 @@ Puppet::Type.type(:repository_sync).provide :linux do
       # Create item path and then remove all instances of ./
       item_path = destination + result['path'] + '/' + result['name']
 
-      item_path.gsub!(/\/\.\//, '/')
-      item_path.gsub!(/\/\.$/, '')
+      item_path.gsub!(%r{\/\.\/}, '/')
+      item_path.gsub!(%r{\/\.$}, '')
 
       # If the item (folder or file) doesn't exist create it
       if !File.exist?(item_path)
@@ -269,27 +253,27 @@ Puppet::Type.type(:repository_sync).provide :linux do
       # Get owner and group
       owner = Etc.getpwuid(File.stat(item_path).uid).name
       group = Etc.getpwuid(File.stat(item_path).gid).name
-      mode =  (File.stat(item_path).mode & 07777).to_s(8)
+      mode =  (File.stat(item_path).mode & 0o7777).to_s(8)
 
       artifactory_owner = get_value(result['properties'], 'owner')
       artifactory_group = get_value(result['properties'], 'group')
       artifactory_mode = get_value(result['properties'], 'mode')
 
       # If the owner is defined make sure it matches
-      if !artifactory_owner.nil? and artifactory_owner != owner
+      if !artifactory_owner.nil? && artifactory_owner != owner
         uid = Etc.getpwnam(artifactory_owner).uid
 
         File.chown(uid, nil, item_path)
       end
 
-      if !artifactory_group.nil? and artifactory_group != group
+      if !artifactory_group.nil? && artifactory_group != group
         gid = Etc.getpwnam(artifactory_group).uid
 
         File.chown(nil, gid, item_path)
       end
 
       # If the mode is defined make sure it matches
-      if !artifactory_mode.nil? and artifactory_mode != mode
+      if !artifactory_mode.nil? && artifactory_mode != mode
 
         artifactory_mode.gsub!(/^([1-9])/, '0\1')
 
@@ -313,13 +297,13 @@ Puppet::Type.type(:repository_sync).provide :linux do
 
     delete_files = all_files - current_files
 
-    delete_files.each {|delete_file|
+    delete_files.each { |delete_file|
       File.delete(delete_file)
     }
 
     delete_dirs = all_directories - current_directories
 
-    delete_dirs.each {|delete_dir|
+    delete_dirs.each { |delete_dir|
       Dir.delete(delete_dir)
     }
   end

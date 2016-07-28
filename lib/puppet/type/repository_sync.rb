@@ -12,7 +12,7 @@ Puppet::Type.newtype(:repository_sync) do
     raise Puppet::Error, 'destination is required.' unless self[:destination]
   end
 
-  newparam(:repository, :namevar => true) do
+  newparam(:repository, namevar: true) do
     desc "The artifactory repository we are looking to synchronize locally."
 
     validate do |value|
@@ -32,13 +32,13 @@ Puppet::Type.newtype(:repository_sync) do
     desc "The file system destination for the repository synchronization."
 
     munge do |value|
-        case value
-        when /^.*\/$/
-          value
-        else
-          value + '/'
-        end
+      case value
+      when %r{^.*\/$}
+        value
+      else
+        value + '/'
       end
+    end
 
     validate do |value|
       raise ArgumentError, "The destination of the repository synchronization must not be empty." if value.empty?

@@ -8,7 +8,7 @@ Puppet::Type.newtype(:artifact_sync) do
     'rest-client'
   end
 
-  newparam(:destination, :namevar => true) do
+  newparam(:destination, namevar: true) do
     desc "The file system destination for the repository synchronization."
 
     validate do |value|

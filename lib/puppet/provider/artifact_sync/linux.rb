@@ -4,9 +4,9 @@ require 'fileutils'
 Puppet::Type.type(:artifact_sync).provide :linux do
   desc "Synchronizes an Artifactory repository on a linux server."
 
-  defaultfor :osfamily => :RedHat
+  defaultfor osfamily: :RedHat
 
-  def get_header(source_url,  user_name, password_hash)
+  def get_header(source_url, user_name, password_hash)
     # [RELEASE] has special signifiance in Artifactory. Let's escape it
     url = source_url.gsub(/\[RELEASE\]/, '%5BRELEASE%5D')
 
@@ -19,16 +19,15 @@ Puppet::Type.type(:artifact_sync).provide :linux do
       response = get_query(URI.parse(response.header['location']), user_name, password_hash)
     end
 
-    return response
+    response
   end
 
-
-  def get_query(source_url,  user_name, password_hash)
+  def get_query(source_url, user_name, password_hash)
     # [RELEASE] has special signifiance in Artifactory. Let's escape it
     url = source_url.gsub(/\[RELEASE\]/, '%5BRELEASE%5D')
 
     # user and password_hash are here use auth
-    if user_name and password_hash
+    if user_name && password_hash
       return open(url, http_basic_authentication: [user_name, password_hash])
     else
       return open(url)
@@ -36,7 +35,7 @@ Puppet::Type.type(:artifact_sync).provide :linux do
   end
 
   # Write a new file to the destination
-  def write_file(url, destination, user_name, password_hash, owner, group)
+  def write_file(url, destination, _user_name, _password_hash, owner, group)
     # [RELEASE] has special signifiance in Artifactory. Let's escape it
     escaped_url = url.gsub(/\[RELEASE\]/, '%5BRELEASE%5D')
 
@@ -74,7 +73,7 @@ Puppet::Type.type(:artifact_sync).provide :linux do
     password         = @resource.value(:password)
 
     # If the destination doesn't exists return false
-    if !File.exists?(destination)
+    if !File.exist?(destination)
       return false
     end
 
