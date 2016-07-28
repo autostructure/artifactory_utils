@@ -41,7 +41,7 @@ Puppet::Type.type(:artifact_sync).provide :linux do
 
     uri = URI(escaped_url)
 
-    Net::HTTP.start(uri.host, uri.port) do |http|
+    Net::HTTP.start(uri.host, uri.port, use_ssl: (uri.scheme == 'https'), verify_mode: OpenSSL::SSL::VERIFY_NONE) do |http|
       request = Net::HTTP::Get.new uri
 
       http.request request do |response|
@@ -51,8 +51,10 @@ Puppet::Type.type(:artifact_sync).provide :linux do
               io.write chunk
             end
           end
-        else
+        elsif response.code == "404"
           raise Puppet::Error, 'No file can be found at ' + url
+        else
+          raise Puppet::Error, 'Error retrieving file at ' + url + " (Response code: " + response.code + ")"
         end
       end
 
@@ -84,7 +86,7 @@ Puppet::Type.type(:artifact_sync).provide :linux do
       if response.code == "401"
         raise Puppet::Error, 'You do not have permission to access ' + source_url
       elsif response.code != "200"
-        raise Puppet::Error, 'No file can be found at ' + source_url
+        raise Puppet::Error, 'Error retrieving file at ' + url + " (Response code: " + response.code + ")"
       end
 
       # Checksum returned by the http response
