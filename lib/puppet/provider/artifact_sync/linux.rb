@@ -77,10 +77,7 @@ Puppet::Type.type(:artifact_sync).provide :linux do
       return false
     end
 
-    case ensured_value
-    when 'absent'
-      return true
-    else
+    if ensured_value != absent
       response = get_header(source_url, user, password)
 
       # We should only move forward on a 200
@@ -100,9 +97,9 @@ Puppet::Type.type(:artifact_sync).provide :linux do
       if sha1 != current_sha1
         return false
       end
-
-      return true
     end
+
+    true
   end
 
   # Delete all directories and files under destination
