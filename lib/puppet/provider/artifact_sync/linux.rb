@@ -79,14 +79,14 @@ Puppet::Type.type(:artifact_sync).provide :linux do
       return false
     end
 
-    if ensured_value != absent
+    if ensured_value != 'absent'
       response = get_header(source_url, user, password)
 
       # We should only move forward on a 200
       if response.code == "401"
         raise Puppet::Error, 'You do not have permission to access ' + source_url
       elsif response.code != "200"
-        raise Puppet::Error, 'Error retrieving file at ' + url + " (Response code: " + response.code + ")"
+        raise Puppet::Error, 'Error retrieving file at ' + source_url + " (Response code: " + response.code + ")"
       end
 
       # Checksum returned by the http response
