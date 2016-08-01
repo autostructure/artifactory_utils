@@ -1,3 +1,6 @@
+2016-08-01 Release 1.2.18
+- Fix some ruby variable scoping
+
 2016-07-28 Release 1.2.15
 - Add automated testing
 - Clean up ruby lint
