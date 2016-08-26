@@ -28,6 +28,15 @@ Puppet::Type.newtype(:repository_sync) do
     end
   end
 
+  newparam(:artifactory_port) do
+    desc "The port of the artifactory application."
+    defaultto 80
+
+    validate do |value|
+      raise ArgumentError, "Artifactory port must be a number" unless value.is_a?(Integer)
+    end
+  end
+
   newparam(:destination) do
     desc "The file system destination for the repository synchronization."
 

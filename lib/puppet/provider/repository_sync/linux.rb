@@ -82,6 +82,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
     else
       # Assign variables assigned by parameters
       artifactory_host = @resource.value(:artifactory_host)
+      artifactory_port = @resource.value(:artifactory_port)
       destination      = @resource.value(:destination)
       user             = @resource.value(:user)
       password         = @resource.value(:password)
@@ -101,7 +102,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
       current_files = []
 
       # AQL api search url
-      aql_url = 'http://' + artifactory_host + '/artifactory/api/search/aql'
+      aql_url = 'http://' + artifactory_host + ':' + artifactory_port + '/artifactory/api/search/aql'
 
       query = repository_item_query(repository_name)
 
@@ -181,8 +182,8 @@ Puppet::Type.type(:repository_sync).provide :linux do
   end
 
   # Write a new file to the destination
-  def write_file(result, destination, artifactory_host)
-    Net::HTTP.start(artifactory_host) do |http|
+  def write_file(result, destination, artifactory_host, artifactory_port)
+    Net::HTTP.start(artifactory_host, artifactory_port) do |http|
       resp = http.get('/artifactory/' + result['repo'] + '/' + result['path'] + '/' + result['name'])
 
       open(destination + result['path'] + '/' + result['name'], 'wb') do |io|
@@ -207,6 +208,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
   def create
     # Assign variables assigned by parameters
     artifactory_host = @resource.value(:artifactory_host)
+    artifactory_port = @resource.value(:artifactory_port)
     destination      = @resource.value(:destination)
     user             = @resource.value(:user)
     password         = @resource.value(:password)
@@ -226,7 +228,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
     current_files = []
 
     # AQL api search url
-    aql_url = 'http://' + artifactory_host + '/artifactory/api/search/aql'
+    aql_url = 'http://' + artifactory_host + ':' + artifactory_port + '/artifactory/api/search/aql'
 
     query = repository_item_query(repository_name)
 
@@ -246,7 +248,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
         if result['type'] == 'folder'
           Dir.mkdir item_path
         else
-          write_file result, destination, artifactory_host
+          write_file result, destination, artifactory_host, artifactory_port
         end
       end
 
@@ -290,7 +292,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
 
         # Make sure the sha1 hashes match
         if sha1 != result['actual_sha1']
-          write_file result, destination, artifactory_host
+          write_file result, destination, artifactory_host, artifactory_port
         end
       end
     end
