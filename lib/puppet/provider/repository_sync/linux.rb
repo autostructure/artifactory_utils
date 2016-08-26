@@ -102,7 +102,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
       current_files = []
 
       # AQL api search url
-      aql_url = 'http://' + artifactory_host + ':' + artifactory_port + '/artifactory/api/search/aql'
+      aql_url = "http://#{artifactory_host}:#{artifactory_port}/artifactory/api/search/aql"
 
       query = repository_item_query(repository_name)
 
@@ -228,7 +228,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
     current_files = []
 
     # AQL api search url
-    aql_url = 'http://' + artifactory_host + ':' + artifactory_port + '/artifactory/api/search/aql'
+    aql_url = "http://#{artifactory_host}:#{artifactory_port}/artifactory/api/search/aql"
 
     query = repository_item_query(repository_name)
 
