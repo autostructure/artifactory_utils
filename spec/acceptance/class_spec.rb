@@ -16,6 +16,8 @@ describe 'artifactory_utils::artifact_sync' do
         let(:facts) do
           facts
         end
+
+        File.exists? '/tmp/my_app.war'
       end
     end
   end
