@@ -4,6 +4,8 @@ require 'fileutils'
 Puppet::Type.type(:artifact_sync).provide :linux do
   desc "Synchronizes an Artifactory repository on a linux server."
 
+  # Is it gone?
+
   defaultfor osfamily: :RedHat
 
   def get_header(source_url, user_name, password_hash)
@@ -11,9 +13,16 @@ Puppet::Type.type(:artifact_sync).provide :linux do
     url = source_url.gsub(/\[RELEASE\]/, '%5BRELEASE%5D')
 
     uri_get = URI.parse(url)
-    http = Net::HTTP.start(uri_get.host, uri_get.port)
 
-    response = http.head(uri_get.request_uri)
+    http = Net::HTTP.start(uri_get.host, uri_get.port, use_ssl: (uri_get.scheme == 'https'), verify_mode: OpenSSL::SSL::VERIFY_NONE )
+
+    request = Net::HTTP::Head.new(uri_get)
+
+    if user_name && password_hash
+      request.basic_auth user_name, password_hash
+    end
+
+    response = http.request request
 
     if response.code == 301
       response = get_query(URI.parse(response.header['location']), user_name, password_hash)
@@ -35,7 +44,7 @@ Puppet::Type.type(:artifact_sync).provide :linux do
   end
 
   # Write a new file to the destination
-  def write_file(url, destination, _user_name, _password_hash, owner, group)
+  def write_file(url, destination, user_name, password_hash, owner, group)
     # [RELEASE] has special signifiance in Artifactory. Let's escape it
     escaped_url = url.gsub(/\[RELEASE\]/, '%5BRELEASE%5D')
 
@@ -43,6 +52,10 @@ Puppet::Type.type(:artifact_sync).provide :linux do
 
     Net::HTTP.start(uri.host, uri.port, use_ssl: (uri.scheme == 'https'), verify_mode: OpenSSL::SSL::VERIFY_NONE) do |http|
       request = Net::HTTP::Get.new uri
+
+      if user_name && password_hash
+        request.basic_auth user_name, password_hash
+      end
 
       http.request request do |response|
         if response.code == "200"
