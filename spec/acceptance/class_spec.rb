@@ -18,6 +18,7 @@ describe 'artifactory_utils::artifact_sync' do
         end
 
         File.exist? '/tmp/my_app.war'
+        File.exist? '/tmp/my_app.warx'
       end
     end
   end
