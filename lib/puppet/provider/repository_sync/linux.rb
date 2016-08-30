@@ -198,7 +198,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
   end
 
   # Write a new file to the destination
-  def write_file(result, destination, artifactory_host, _artifactory_port, user, password)
+  def write_file(result, destination, artifactory_host, artifactory_port, user, password)
     uri = URI("http://#{artifactory_host}:#{artifactory_port}/artifactory/#{result['repo']}/#{result['path']}/#{result['name']}")
     Net::HTTP.start(uri.host, uri.port) do |http|
       request = Net::HTTP::Get.new uri
