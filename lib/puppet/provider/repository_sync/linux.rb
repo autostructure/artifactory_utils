@@ -121,21 +121,37 @@ Puppet::Type.type(:repository_sync).provide :linux do
         return false if !File.exist?(item_path)
 
         # Get owner and group
-        owner = Etc.getpwuid(File.stat(item_path).uid).name
-        group = Etc.getpwuid(File.stat(item_path).gid).name
+        owner = File.stat(item_path).uid
+        group = File.stat(item_path).gid
         mode =  (File.stat(item_path).mode & 0o7777).to_s(8)
 
         artifactory_owner = get_value(result['properties'], 'owner')
         artifactory_group = get_value(result['properties'], 'group')
         artifactory_mode = get_value(result['properties'], 'mode')
 
+        if !artifactory_owner.nil?
+          artifactory_uid = if /\A\d+\z/ =~ artifactory_owner
+                              artifactory_owner.to_i
+                            elsif !artifactory_owner.nil?
+                              Etc.getpwnam(artifactory_owner).uid
+                            end
+        end
+
+        if !artifactory_group.nil?
+          artifactory_gid = if /\A\d+\z/ =~ artifactory_group
+                              artifactory_group.to_i
+                            elsif !artifactory_group.nil?
+                              Etc.getpwnam(artifactory_group).uid
+                            end
+        end
+
         # If the owner is defined make sure it matches
-        if !artifactory_owner.nil? && artifactory_owner != owner
+        if !artifactory_uid.nil? && artifactory_uid != owner
           return false
         end
 
         # If the group is defined make sure it matches
-        if !artifactory_group.nil? && artifactory_group != group
+        if !artifactory_gid.nil? && artifactory_gid != group
           return false
         end
 
@@ -161,7 +177,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
           sha1 = Digest::SHA1.file item_path
 
           # Make sure the sha1 hashes match
-          return fasle if sha1 != result['actual_sha1']
+          return false if sha1 != result['actual_sha1']
         end
       end
 
@@ -182,13 +198,22 @@ Puppet::Type.type(:repository_sync).provide :linux do
   end
 
   # Write a new file to the destination
-  def write_file(result, destination, artifactory_host, artifactory_port)
-    Net::HTTP.start(artifactory_host, artifactory_port) do |http|
-      resp = http.get('/artifactory/' + result['repo'] + '/' + result['path'] + '/' + result['name'])
+  def write_file(result, destination, artifactory_host, _artifactory_port, user, password)
+    uri = URI("http://#{artifactory_host}/artifactory/#{result['repo']}/#{result['path']}/#{result['name']}")
+    Net::HTTP.start(uri.host, uri.port) do |http|
+      request = Net::HTTP::Get.new uri
 
-      open(destination + result['path'] + '/' + result['name'], 'wb') do |io|
-        resp.read_body do |chunk|
-          io.write chunk
+      if user && password
+        request.basic_auth user, password
+      end
+
+      http.request request do |response|
+        if response.code == "200"
+          open(destination + result['path'] + '/' + result['name'], 'wb') do |io|
+            response.read_body do |chunk|
+              io.write chunk
+            end
+          end
         end
       end
     end
@@ -248,30 +273,42 @@ Puppet::Type.type(:repository_sync).provide :linux do
         if result['type'] == 'folder'
           Dir.mkdir item_path
         else
-          write_file result, destination, artifactory_host, artifactory_port
+          write_file result, destination, artifactory_host, artifactory_port, user, password
         end
       end
 
       # Get owner and group
-      owner = Etc.getpwuid(File.stat(item_path).uid).name
-      group = Etc.getpwuid(File.stat(item_path).gid).name
+      owner = File.stat(item_path).uid
+      group = File.stat(item_path).gid
       mode =  (File.stat(item_path).mode & 0o7777).to_s(8)
 
       artifactory_owner = get_value(result['properties'], 'owner')
       artifactory_group = get_value(result['properties'], 'group')
       artifactory_mode = get_value(result['properties'], 'mode')
 
-      # If the owner is defined make sure it matches
-      if !artifactory_owner.nil? && artifactory_owner != owner
-        uid = Etc.getpwnam(artifactory_owner).uid
-
-        File.chown(uid, nil, item_path)
+      if !artifactory_owner.nil?
+        artifactory_uid = if /\A\d+\z/ =~ artifactory_owner
+                            artifactory_owner.to_i
+                          elsif !artifactory_owner.nil?
+                            Etc.getpwnam(artifactory_owner).uid
+                          end
       end
 
-      if !artifactory_group.nil? && artifactory_group != group
-        gid = Etc.getpwnam(artifactory_group).uid
+      if !artifactory_group.nil?
+        artifactory_gid = if /\A\d+\z/ =~ artifactory_group
+                            artifactory_group.to_i
+                          elsif !artifactory_group.nil?
+                            Etc.getpwnam(artifactory_group).uid
+                          end
+      end
 
-        File.chown(nil, gid, item_path)
+      # If the owner is defined make sure it matches
+      if !artifactory_uid.nil? && artifactory_uid != owner
+        File.chown(artifactory_uid, nil, item_path)
+      end
+
+      if !artifactory_gid.nil? && artifactory_gid != group
+        File.chown(nil, artifactory_gid, item_path)
       end
 
       # If the mode is defined make sure it matches
@@ -292,7 +329,7 @@ Puppet::Type.type(:repository_sync).provide :linux do
 
         # Make sure the sha1 hashes match
         if sha1 != result['actual_sha1']
-          write_file result, destination, artifactory_host, artifactory_port
+          write_file result, destination, artifactory_host, artifactory_port, user, password
         end
       end
     end
