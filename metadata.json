@@ -1,6 +1,6 @@
 {
   "name": "autostructure-artifactory_utils",
-  "version": "1.3.10",
+  "version": "1.3.11",
   "author": "autostructure",
   "summary": "Toolbox of utils for artifactory interaction",
   "license": "Apache-2.0",
